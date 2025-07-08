@@ -20,7 +20,7 @@ from pdf_processor import (
     extract_paper_sections, extract_paper_metadata, extract_paper_from_url,
     save_uploaded_file, get_saved_papers, delete_paper
 )
-from vector_store import create_vector_store
+from vector_store import create_vector_store, display_chunking_config
 from research_chain import setup_research_chain, process_question
 
 def initialize_session_state() -> None:
@@ -217,6 +217,10 @@ def render_sidebar(llm: Any, embeddings: Any) -> None:
                                     st.rerun()
         else:
             st.info("No saved papers yet. Upload or download papers to see them here.")
+        
+        # Display chunking configuration
+        st.markdown("---")
+        display_chunking_config()
 
 def handle_quick_action(question: str) -> None:
     """Handle quick action button press"""

@@ -24,6 +24,12 @@ CHUNK_SIZE: int = 1000
 CHUNK_OVERLAP: int = 200
 SIMILARITY_SEARCH_K: int = 6
 
+# Semantic chunking settings
+SEMANTIC_CHUNKING_ENABLED: bool = True
+SEMANTIC_BREAKPOINT_THRESHOLD_TYPE: str = "percentile"  # "percentile", "standard_deviation", or "interquartile"
+SEMANTIC_BREAKPOINT_THRESHOLD_AMOUNT: float = 95.0  # For percentile: 95th percentile
+SEMANTIC_BUFFER_SIZE: int = 1  # Number of sentences to include on either side of a breakpoint
+
 # LLM settings
 DEFAULT_MODEL: str = "llama-3.1-8b-instant"
 DEFAULT_TEMPERATURE: float = 0.1

@@ -21,7 +21,7 @@ class CustomSemanticChunker:
     """Custom semantic chunker implementation using sentence embeddings"""
     
     def __init__(self, embeddings, breakpoint_threshold_type="percentile", 
-                 breakpoint_threshold_amount=95.0, buffer_size=1):
+                breakpoint_threshold_amount=95.0, buffer_size=1):
         self.embeddings = embeddings
         self.breakpoint_threshold_type = breakpoint_threshold_type
         self.breakpoint_threshold_amount = breakpoint_threshold_amount
