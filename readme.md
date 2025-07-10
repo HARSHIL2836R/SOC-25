@@ -354,13 +354,3 @@ This project demonstrates advanced concepts in:
 - **Web Application Development**: Modern Streamlit development practices
 
 For more learning resources, visit the [Notion page](https://responsible-minibus-af3.notion.site/LLM-Powered-Research-Agent-SOC-1fa6bc81b71780fab5f8d992834af017).
-
-## 📄 License
-
-This project is developed for educational purposes as part of the IIT academics program.
-
----
-
-**Built with ❤️ for researchers, by researchers**
-
-*Empowering academic research through intelligent AI assistance*
