@@ -54,11 +54,26 @@ class ResearchAgent:
         
         # Initialize Tavily client for internet search
         self.tavily_client = None
-        if ENABLE_INTERNET_SEARCH and TAVILY_API_KEY and TavilyClient:
-            try:
-                self.tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
-            except Exception as e:
-                st.warning(f"Could not initialize Tavily search: {e}")
+        self.search_error_message = None
+        
+        if ENABLE_INTERNET_SEARCH:
+            if not TavilyClient:
+                self.search_error_message = "Tavily package not installed. Install with: pip install tavily-python"
+            elif not TAVILY_API_KEY or TAVILY_API_KEY == "your_tavily_api_key_here":
+                self.search_error_message = """🔑 Tavily API key not configured for internet search.
+                
+To enable internet search for similar papers:
+1. Get a free API key from: https://tavily.com/
+2. Add it to your .env file: TAVILY_API_KEY=your_actual_key_here
+3. Restart the application
+
+Currently using local paper analysis only."""
+            else:
+                try:
+                    self.tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
+                    st.success("🌐 Internet search enabled for finding similar papers!")
+                except Exception as e:
+                    self.search_error_message = f"Could not initialize Tavily search: {e}"
         
         # Create the agent graph
         self.graph = self._create_agent_graph()
@@ -141,7 +156,10 @@ class ResearchAgent:
         """Search the internet for similar papers"""
         try:
             if not self.tavily_client:
-                st.warning("Internet search not available. Using local paper only.")
+                if self.search_error_message:
+                    st.warning(self.search_error_message)
+                else:
+                    st.warning("Internet search not available. Using local paper only.")
                 return self._local_paper_search(state)
             
             # Extract key terms from the paper for search
@@ -430,6 +448,15 @@ ANSWER:""",
 def setup_research_chain(vector_store: Any, llm: Any, metadata: Dict[str, Any]) -> Optional[ResearchAgent]:
     """Setup the LangGraph research agent"""
     try:
+        # Display search status
+        search_status = check_internet_search_setup()
+        
+        if not search_status["available"]:
+            st.warning(f"Internet search: {search_status['message']}")
+            if search_status["instructions"]:
+                with st.expander("📋 Setup Instructions", expanded=False):
+                    st.info(search_status["instructions"])
+        
         agent = ResearchAgent(vector_store, llm, metadata)
         return agent
     except Exception as e:
@@ -459,3 +486,147 @@ def process_question(research_agent: ResearchAgent, research_memory: Any, questi
     except Exception as e:
         st.error(f"Error processing question: {e}")
         return f"Error processing your question: {e}"
+
+def check_internet_search_setup() -> Dict[str, Any]:
+    """Check the setup status for internet search functionality"""
+    status = {
+        "available": False,
+        "tavily_installed": False,
+        "api_key_configured": False,
+        "message": "",
+        "instructions": ""
+    }
+    
+    # Check if Tavily is installed
+    if TavilyClient is None:
+        status["message"] = "❌ Tavily package not installed"
+        status["instructions"] = "Install with: pip install tavily-python"
+        return status
+    
+    status["tavily_installed"] = True
+    
+    # Check if API key is configured
+    if not TAVILY_API_KEY or TAVILY_API_KEY == "your_tavily_api_key_here":
+        status["message"] = "🔑 Tavily API key not configured"
+        status["instructions"] = """To enable internet search:
+1. Get a free API key from: https://tavily.com/
+2. Add it to your .env file: TAVILY_API_KEY=your_actual_key_here
+3. Restart the application"""
+        return status
+    
+    status["api_key_configured"] = True
+    
+    # Test the connection
+    try:
+        test_client = TavilyClient(api_key=TAVILY_API_KEY)
+        # Try a simple test search
+        test_client.search("test", max_results=1)
+        status["available"] = True
+        status["message"] = "✅ Internet search ready"
+    except Exception as e:
+        status["message"] = f"❌ Tavily API error: {str(e)}"
+        status["instructions"] = "Check your API key and internet connection"
+    
+    return status
+
+def display_search_status():
+    """Display the current status of internet search setup"""
+    status = check_internet_search_setup()
+    
+    with st.expander("🔍 Internet Search Configuration", expanded=not status["available"]):
+        st.write(status["message"])
+        
+        if status["instructions"]:
+            st.info(status["instructions"])
+        
+        # Add troubleshooting section
+        if not status["available"]:
+            if st.button("🔧 Run Troubleshooting"):
+                troubleshoot = troubleshoot_internet_search()
+                
+                st.markdown("### 🛠️ Troubleshooting Results")
+                for issue in troubleshoot["issues"]:
+                    st.write(issue)
+                
+                if troubleshoot["solutions"]:
+                    st.markdown("### 💡 Recommended Solutions")
+                    for solution in troubleshoot["solutions"]:
+                        st.write(f"• {solution}")
+        
+        if status["tavily_installed"] and not status["api_key_configured"]:
+            st.markdown("""
+            **What is Tavily?**
+            Tavily is a search API optimized for research and analysis. It helps find:
+            - Recent academic papers
+            - Related research work
+            - Comparative studies
+            - Survey papers and reviews
+            
+            **Benefits of enabling internet search:**
+            - Find papers similar to your uploaded document
+            - Get recent research in the same field
+            - Compare methodologies across papers
+            - Discover state-of-the-art approaches
+            """)
+        
+        if status["available"]:
+            st.success("Internet search is enabled! You can now ask questions like:")
+            st.markdown("""
+            - "Find papers similar to this one"
+            - "What are recent developments in this field?"
+            - "Show me comparative studies on this topic"
+            - "Find survey papers related to this research"
+            """)
+
+def troubleshoot_internet_search() -> Dict[str, Any]:
+    """Comprehensive troubleshooting for internet search issues"""
+    issues = []
+    solutions = []
+    
+    # Check Tavily installation
+    if TavilyClient is None:
+        issues.append("❌ Tavily package not installed")
+        solutions.append("Run: pip install tavily-python")
+    else:
+        issues.append("✅ Tavily package installed")
+    
+    # Check API key in environment
+    if not TAVILY_API_KEY:
+        issues.append("❌ TAVILY_API_KEY not found in environment")
+        solutions.append("Add TAVILY_API_KEY to your .env file")
+    elif TAVILY_API_KEY == "your_tavily_api_key_here":
+        issues.append("❌ TAVILY_API_KEY is still placeholder value")
+        solutions.append("Replace placeholder with your actual API key from https://tavily.com/")
+    else:
+        issues.append("✅ TAVILY_API_KEY found in environment")
+    
+    # Check internet connection
+    try:
+        import requests
+        response = requests.get("https://tavily.com", timeout=5)
+        if response.status_code == 200:
+            issues.append("✅ Internet connection working")
+        else:
+            issues.append("⚠️ Can reach Tavily but got non-200 response")
+    except Exception:
+        issues.append("❌ Cannot reach Tavily website")
+        solutions.append("Check your internet connection")
+    
+    # Test API if key is available
+    if TAVILY_API_KEY and TAVILY_API_KEY != "your_tavily_api_key_here" and TavilyClient:
+        try:
+            client = TavilyClient(api_key=TAVILY_API_KEY)
+            result = client.search("test", max_results=1)
+            if result and result.get('results'):
+                issues.append("✅ Tavily API working correctly")
+            else:
+                issues.append("⚠️ API responds but returns no results")
+        except Exception as e:
+            issues.append(f"❌ Tavily API error: {str(e)}")
+            solutions.append("Check your API key is correct and account is active")
+    
+    return {
+        "issues": issues,
+        "solutions": solutions,
+        "has_errors": any("❌" in issue for issue in issues)
+    }

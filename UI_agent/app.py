@@ -21,7 +21,7 @@ from pdf_processor import (
     save_uploaded_file, get_saved_papers, delete_paper
 )
 from vector_store import create_vector_store, display_chunking_config
-from research_chain import setup_research_chain, process_question
+from research_chain import setup_research_chain, process_question, display_search_status
 
 def initialize_session_state() -> None:
     """Initialize session state variables"""
@@ -220,6 +220,9 @@ def render_sidebar(llm: Any, embeddings: Any) -> None:
         
         # Display chunking configuration
         st.markdown("---")
+        
+        # Display internet search status
+        display_search_status()
         display_chunking_config()
 
 def handle_quick_action(question: str) -> None:
@@ -376,18 +379,18 @@ def main() -> None:
         else:
             st.info("👈 Please upload a PDF or enter a URL in the sidebar to start analyzing a research paper.")
             
-            # Highlight new feature
-            st.markdown("### 🆕 New Feature: Similar Papers Search")
-            st.success("""
-            🔍 **Discover Related Research Automatically!**
+            # # Highlight new feature
+            # st.markdown("### 🆕 New Feature: Similar Papers Search")
+            # st.success("""
+            # 🔍 **Discover Related Research Automatically!**
             
-            Once you upload a paper, you can:
-            - Click the **"🔍 Similar Papers"** quick action button
-            - Ask questions like *"Find similar papers to this research"*
-            - Get comparative analysis with related work from academic databases
+            # Once you upload a paper, you can:
+            # - Click the **"🔍 Similar Papers"** quick action button
+            # - Ask questions like *"Find similar papers to this research"*
+            # - Get comparative analysis with related work from academic databases
             
-            *Powered by internet search across arXiv, Google Scholar, and more!*
-            """)
+            # *Powered by internet search across arXiv, Google Scholar, and more!*
+            # """)
             
             display_sample_papers(SAMPLE_PAPERS)
     
