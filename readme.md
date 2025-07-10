@@ -286,23 +286,6 @@ scikit-learn>=1.0.0       # Cosine similarity calculations
 tavily-python>=0.3.0      # Internet search API
 ```
 
-## 🧩 Extending the Application
-
-### Adding New Quick Actions
-1. Define your action in the `render_quick_actions()` function in `app.py`
-2. Create a handler function following the pattern of `handle_quick_action()`
-3. Add appropriate prompts and processing logic
-
-### Custom Chunking Strategies
-1. Extend the `create_text_splitter()` function in `vector_store.py`
-2. Implement your custom chunking logic
-3. Update configuration options in `config.py`
-
-### New Agent Capabilities
-1. Modify the agent workflow in `research_chain.py`
-2. Add new tools or modify existing ones
-3. Update routing logic for different types of queries
-
 ## 🐛 Troubleshooting
 
 ### Common Issues
@@ -332,16 +315,6 @@ tavily-python>=0.3.0      # Internet search API
 - Use semantic chunking for better results
 - Clear chat history periodically to manage memory
 - Close other resource-intensive applications
-
-## 🤝 Contributing
-
-This project was developed as part of the IIT academics SOC@25 program. Future enhancements could include:
-
-- **Multi-language Support**: Support for non-English research papers
-- **Citation Network Analysis**: Visualize paper relationships and citations
-- **Collaborative Features**: Share analyses and discussions with team members
-- **Export Capabilities**: Save conversations and insights in various formats
-- **Advanced Visualizations**: Interactive charts and graphs for paper insights
 
 ## 📚 Learning Resources
 
