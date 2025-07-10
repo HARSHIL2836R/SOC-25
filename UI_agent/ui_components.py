@@ -119,3 +119,14 @@ def display_paper_sections(sections: Dict[str, str]) -> None:
                 )
     else:
         st.info("No sections extracted from the paper.")
+
+def display_search_indicator(status: str, query: str = "") -> None:
+    """Display search status indicator"""
+    if status == "searching":
+        st.info(f"🔍 **Searching the internet for similar papers...**\n\n*Query: {query}*")
+    elif status == "found":
+        st.success("✅ **Similar papers found!** Results are being integrated into the response.")
+    elif status == "no_results":
+        st.warning("⚠️ **No similar papers found** in the search. Continuing with local analysis only.")
+    elif status == "error":
+        st.error("❌ **Search unavailable** - Using local paper analysis only.")

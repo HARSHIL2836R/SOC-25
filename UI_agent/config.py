@@ -48,6 +48,16 @@ PREVIEW_LENGTH: int = 500
 ARXIV_ABSTRACT_PATTERN: str = 'arxiv.org/abs/'
 ARXIV_PDF_BASE: str = "https://arxiv.org/pdf/{}.pdf"
 
+# Internet search settings for LangGraph agent
+TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
+GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+MAX_SEARCH_RESULTS: int = 5
+SEARCH_TIMEOUT: int = 30
+
+# LangGraph agent settings
+ENABLE_INTERNET_SEARCH: bool = True
+SEARCH_DOMAINS: List[str] = ["arxiv.org", "scholar.google.com", "semanticscholar.org", "pubmed.ncbi.nlm.nih.gov"]
+
 # Section patterns for paper parsing
 SECTION_PATTERNS: List[str] = [
     r'^(abstract|introduction|related work|methodology|method|approach|implementation|results|discussion|conclusion|references|acknowledgments)',

@@ -65,7 +65,7 @@ def process_uploaded_pdf(uploaded_file: Any, embeddings: Any, llm: Any) -> bool:
                 st.session_state.paper_sections = sections
                 st.session_state.paper_metadata = metadata
                 st.session_state.vector_store = vector_store
-                st.session_state.research_chain = setup_research_chain(vector_store, llm, metadata)
+                st.session_state.research_agent = setup_research_chain(vector_store, llm, metadata)
                 
                 st.success("✅ Paper processed successfully!")
                 return True
@@ -97,7 +97,7 @@ def process_url_input(url: str, embeddings: Any, llm: Any) -> bool:
                 st.session_state.paper_sections = sections
                 st.session_state.paper_metadata = metadata
                 st.session_state.vector_store = vector_store
-                st.session_state.research_chain = setup_research_chain(vector_store, llm, metadata)
+                st.session_state.research_agent = setup_research_chain(vector_store, llm, metadata)
                 
                 st.success("✅ Paper processed successfully!")
                 return True
@@ -126,7 +126,7 @@ def load_saved_paper(filename: str, embeddings: Any, llm: Any) -> bool:
                 st.session_state.paper_sections = sections
                 st.session_state.paper_metadata = metadata
                 st.session_state.vector_store = vector_store
-                st.session_state.research_chain = setup_research_chain(vector_store, llm, metadata)
+                st.session_state.research_agent = setup_research_chain(vector_store, llm, metadata)
                 st.session_state.chat_history = []  # Clear previous chat
                 st.session_state.research_memory.clear()
                 
@@ -227,18 +227,57 @@ def handle_quick_action(question: str) -> None:
     st.session_state.chat_history.append({"role": "user", "content": question})
     
     try:
-        with st.spinner("Processing..."):
-            answer = process_question(
-                st.session_state.research_chain,
-                st.session_state.research_memory,
-                question
-            )
-            
-            # Add bot response to history
-            st.session_state.chat_history.append({"role": "bot", "content": answer})
-            st.rerun()
+        # Special handling for similar papers search
+        if "similar papers" in question.lower() or "find similar" in question.lower():
+            with st.spinner("🔍 Searching for similar papers on the internet..."):
+                answer = process_question(
+                    st.session_state.research_agent,
+                    st.session_state.research_memory,
+                    question
+                )
+        else:
+            with st.spinner("Processing..."):
+                answer = process_question(
+                    st.session_state.research_agent,
+                    st.session_state.research_memory,
+                    question
+                )
+        
+        # Add bot response to history
+        st.session_state.chat_history.append({"role": "bot", "content": answer})
+        st.rerun()
     except Exception as e:
         st.error(f"Error processing question: {e}")
+
+def handle_similar_papers_action() -> None:
+    """Special handler for similar papers quick action with enhanced UI"""
+    question = "Find similar papers to this research and provide a comparative analysis with key differences and similarities."
+    
+    # Add user message
+    st.session_state.chat_history.append({"role": "user", "content": "🔍 Find Similar Papers"})
+    
+    try:
+        # Show search progress
+        progress_placeholder = st.empty()
+        
+        with progress_placeholder.container():
+            st.info("🔍 **Searching for similar papers...**\n\nThis may take a moment as we search academic databases.")
+        
+        # Process the question
+        answer = process_question(
+            st.session_state.research_agent,
+            st.session_state.research_memory,
+            question
+        )
+        
+        # Clear progress indicator and add response
+        progress_placeholder.empty()
+        st.session_state.chat_history.append({"role": "bot", "content": answer})
+        st.rerun()
+        
+    except Exception as e:
+        progress_placeholder.empty()
+        st.error(f"Error searching for similar papers: {e}")
 
 def render_chat_interface() -> None:
     """Render the chat interface"""
@@ -262,7 +301,7 @@ def render_chat_interface() -> None:
         try:
             with st.spinner("Thinking..."):
                 answer = process_question(
-                    st.session_state.research_chain,
+                    st.session_state.research_agent,
                     st.session_state.research_memory,
                     user_question
                 )
@@ -276,7 +315,7 @@ def render_chat_interface() -> None:
 def render_quick_actions() -> None:
     """Render quick action buttons"""
     st.markdown("### 🚀 Quick Actions")
-    col_a, col_b, col_c = st.columns(3)
+    col_a, col_b, col_c, col_d = st.columns(4)
     
     with col_a:
         if st.button("📝 Summarize Paper"):
@@ -289,6 +328,10 @@ def render_quick_actions() -> None:
     with col_c:
         if st.button("📊 Key Findings"):
             handle_quick_action("What are the key findings and results of this paper?")
+    
+    with col_d:
+        if st.button("🔍 Similar Papers", help="Search the internet for papers similar to this research"):
+            handle_similar_papers_action()
     
     # Clear chat button
     if st.button("🗑️ Clear Chat History"):
@@ -332,6 +375,20 @@ def main() -> None:
             render_quick_actions()
         else:
             st.info("👈 Please upload a PDF or enter a URL in the sidebar to start analyzing a research paper.")
+            
+            # Highlight new feature
+            st.markdown("### 🆕 New Feature: Similar Papers Search")
+            st.success("""
+            🔍 **Discover Related Research Automatically!**
+            
+            Once you upload a paper, you can:
+            - Click the **"🔍 Similar Papers"** quick action button
+            - Ask questions like *"Find similar papers to this research"*
+            - Get comparative analysis with related work from academic databases
+            
+            *Powered by internet search across arXiv, Google Scholar, and more!*
+            """)
+            
             display_sample_papers(SAMPLE_PAPERS)
     
     with col2:
