@@ -630,3 +630,62 @@ def troubleshoot_internet_search() -> Dict[str, Any]:
         "solutions": solutions,
         "has_errors": any("❌" in issue for issue in issues)
     }
+
+
+if __name__ == "__main__":
+    """
+    Demonstrate the research agent graph visualization
+    """
+    print("Creating Research Agent Graph Visualization...")
+    
+    try:
+        # Create a mock vector store and LLM for graph creation
+        class MockVectorStore:
+            def as_retriever(self, **kwargs):
+                return self
+            
+            def invoke(self, query):
+                return []
+        
+        class MockLLM:
+            def invoke(self, prompt):
+                return "Mock response"
+        
+        # Create sample metadata
+        mock_metadata = {
+            'title': 'Sample Research Paper',
+            'authors': 'Sample Authors'
+        }
+        
+        # Initialize the research agent
+        agent = ResearchAgent(
+            vector_store=MockVectorStore(),
+            llm=MockLLM(),
+            metadata=mock_metadata
+        )
+        
+        # Generate and save the graph visualization
+        try:
+            graph_png = agent.graph.get_graph().draw_mermaid_png()
+            
+            # Save the graph to a file
+            with open("research_agent_graph.png", "wb") as f:
+                f.write(graph_png)
+            
+            print("✅ Graph visualization saved as 'research_agent_graph.png'")
+            print("\nGraph shows the LangGraph workflow with the following nodes:")
+            print("- Router: Routes questions and extracts context")
+            print("- Local Search: Searches only in local paper")
+            print("- Internet Search: Searches for similar papers online")
+            print("- Response Generator: Generates final response")
+            
+        except ImportError as e:
+            print(f"❌ Missing dependencies for graph visualization: {e}")
+            print("Install with: pip install pygraphviz or pip install graphviz")
+        except Exception as e:
+            print(f"❌ Error generating graph visualization: {e}")
+            
+    except Exception as e:
+        print(f"Error creating research agent: {e}")
+        
+    print("\nTo use this agent in your application, import and use setup_research_chain()")

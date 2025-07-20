@@ -56,24 +56,175 @@ def extract_paper_sections(pdf_path: str) -> Dict[str, str]:
         return {}
 
 def extract_paper_metadata(pdf_path: str) -> Dict[str, Union[str, int]]:
-    """Extract basic metadata from research paper"""
+    """Extract basic metadata from research paper using font size analysis"""
     try:
         doc: pymupdf.Document = pymupdf.open(pdf_path)
-        
-        first_page: str = doc[0].get_text()
-        lines: List[str] = first_page.split('\n')
         
         title: str = "Unknown Title"
         authors: str = "Unknown Authors"
         
-        substantial_lines: List[str] = [line.strip() for line in lines if len(line.strip()) > 10]
-        if substantial_lines:
-            title = substantial_lines[0]
-            if len(substantial_lines) > 1:
-                for line in substantial_lines[1:4]:
-                    if any(indicator in line.lower() for indicator in ['@', 'university', 'institute', 'college']):
-                        authors = line
-                        break
+        # Extract text with font information from first few pages
+        text_blocks = []
+        
+        # Check first 2 pages for title and author information
+        for page_num in range(min(2, doc.page_count)):
+            page = doc[page_num]
+            blocks = page.get_text("dict")
+            
+            for block in blocks.get("blocks", []):
+                if block.get("type") == 0:  # Text block
+                    for line in block.get("lines", []):
+                        for span in line.get("spans", []):
+                            text = span.get("text", "").strip()
+                            font_size = span.get("size", 0)
+                            font_flags = span.get("flags", 0)
+                            bbox = span.get("bbox", [0, 0, 0, 0])
+                            
+                            # Filter out very short text, page numbers, headers, and metadata
+                            if (len(text) > 10 and 
+                                not text.isdigit() and 
+                                not text.lower().startswith(('page', 'figure', 'table', 'doi:', 'http', 'www')) and
+                                not re.match(r'^arxiv:\d+\.\d+', text.lower()) and  # Skip arXiv IDs
+                                not re.match(r'^\[.*\]', text) and  # Skip bracketed metadata
+                                bbox[1] > 50):  # Skip very top headers (y-coordinate > 50)
+                                
+                                text_blocks.append({
+                                    'text': text,
+                                    'font_size': font_size,
+                                    'is_bold': bool(font_flags & 2**4),  # Bold flag
+                                    'page': page_num,
+                                    'y_position': bbox[1],  # Vertical position
+                                    'line_height': bbox[3] - bbox[1]
+                                })
+        
+        if text_blocks:
+            # Sort by font size (descending) to find largest text
+            text_blocks.sort(key=lambda x: x['font_size'], reverse=True)
+            
+            # Find the title - usually the largest font on the first page
+            title_candidates = []
+            max_font_size = text_blocks[0]['font_size']
+            
+            # Consider text within 15% of max font size as potential titles
+            title_threshold = max_font_size * 0.85
+            
+            for block in text_blocks:
+                if (block['font_size'] >= title_threshold and 
+                    block['page'] == 0 and  # Title should be on first page
+                    len(block['text']) > 15 and  # Reasonable title length
+                    len(block['text']) < 200 and  # Not too long (avoid abstracts)
+                    not block['text'].lower().startswith(('abstract', 'introduction', 'keywords')) and
+                    # Avoid common academic formatting
+                    not re.match(r'^\d+\s', block['text']) and  # Not starting with numbers
+                    not block['text'].isupper()):  # Not all caps (usually headers)
+                    
+                    # Calculate title score based on multiple factors
+                    score = 0
+                    
+                    # Font size score (larger = better)
+                    score += (block['font_size'] / max_font_size) * 40
+                    
+                    # Position score (higher on page = better for title)
+                    if block['y_position'] < 200:  # Top portion of page
+                        score += 30
+                    
+                    # Length score (reasonable title length)
+                    text_len = len(block['text'])
+                    if 20 <= text_len <= 100:  # Ideal title length
+                        score += 20
+                    elif 15 <= text_len <= 150:  # Acceptable title length
+                        score += 10
+                    
+                    # Bold text gets bonus points
+                    if block['is_bold']:
+                        score += 15
+                    
+                    # Penalize certain patterns
+                    text_lower = block['text'].lower()
+                    if any(word in text_lower for word in 
+                           ['conference', 'proceedings', 'journal', 'workshop', 'symposium']):
+                        score -= 20
+                    
+                    # Bonus for academic title patterns
+                    if any(word in text_lower for word in 
+                           ['analysis', 'study', 'approach', 'method', 'model', 'algorithm', 
+                            'framework', 'system', 'learning', 'neural', 'deep']):
+                        score += 10
+                    
+                    title_candidates.append({**block, 'score': score})
+            
+            if title_candidates:
+                # Choose the highest scoring title candidate
+                title_candidates.sort(key=lambda x: x['score'], reverse=True)
+                title_block = title_candidates[0]
+                title = title_block['text']
+                
+                # Clean up the title
+                title = re.sub(r'\s+', ' ', title).strip()
+                title = title.replace('\n', ' ').strip()
+            
+            # Find authors - look for text with author indicators
+            author_candidates = []
+            author_font_threshold = max_font_size * 0.7  # Authors usually smaller than title
+            
+            for block in text_blocks:
+                text_lower = block['text'].lower()
+                if (block['page'] == 0 and  # Authors usually on first page
+                    block['font_size'] < author_font_threshold and
+                    block['font_size'] > 8 and  # Not too small
+                    len(block['text']) > 10 and
+                    block['y_position'] > 100):  # Not in header area
+                    
+                    # Check for author indicators
+                    has_institution = any(indicator in text_lower for indicator in 
+                                        ['university', 'institute', 'college', 'dept', 'department', 
+                                         'school', 'center', 'laboratory', '@'])
+                    
+                    # Check for name patterns
+                    name_patterns = len(re.findall(r'[A-Z][a-z]+ [A-Z][a-z]+', block['text']))
+                    
+                    # Check for email patterns
+                    has_email = '@' in block['text'] and '.' in block['text']
+                    
+                    if has_institution or name_patterns >= 1 or has_email:
+                        score = 0
+                        if has_institution:
+                            score += 20
+                        if has_email:
+                            score += 15
+                        score += name_patterns * 10
+                        
+                        # Prefer text that's not too close to title position
+                        if title != "Unknown Title":
+                            # Find title position
+                            title_y = next((c['y_position'] for c in title_candidates 
+                                          if c['text'] == title), 0)
+                            if block['y_position'] > title_y + 50:  # Below title
+                                score += 10
+                        
+                        author_candidates.append({**block, 'score': score})
+            
+            if author_candidates:
+                # Choose the highest scoring author candidate
+                author_candidates.sort(key=lambda x: x['score'], reverse=True)
+                best_author = author_candidates[0]
+                authors = best_author['text']
+                authors = re.sub(r'\s+', ' ', authors).strip()
+        
+        # Fallback to simple text extraction if font-based method fails
+        if title == "Unknown Title":
+            first_page_text = doc[0].get_text()
+            lines = first_page_text.split('\n')
+            substantial_lines = [line.strip() for line in lines if len(line.strip()) > 15]
+            
+            # Skip obvious metadata lines
+            for line in substantial_lines:
+                if (not re.match(r'^arxiv:\d+\.\d+', line.lower()) and
+                    not line.lower().startswith(('abstract', 'keywords', 'doi:', 'http')) and
+                    not re.match(r'^\[.*\]', line)):
+                    title = line
+                    title = re.sub(r'\s+', ' ', title).strip()
+                    break
         
         metadata: Dict[str, Union[str, int]] = {
             'title': title,
